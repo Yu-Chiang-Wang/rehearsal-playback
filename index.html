@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d1013">
-<title>練團回放台</title>
+<title>我懶得帶電腦</title>
 <style>
 /* Layout: transport on top, spectrum as the main stage with a harmonic side rail, take timeline below. Single dark look so the spectrogram reads like a meter bridge. */
 :root{
@@ -85,7 +85,6 @@ label select,label input{color:var(--fg);font-size:14px}
 #spec{width:100%;height:38vh;min-height:230px;display:block;border-radius:8px;touch-action:manipulation;cursor:crosshair}
 .side{display:flex;flex-direction:column;gap:6px}
 .side h3,.tlHead h3{margin:0;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.12em}
-#harm{width:100%;height:150px;display:block}
 #peaks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font:13px var(--mono);font-variant-numeric:tabular-nums}
 #peaks li{display:grid;grid-template-columns:46px 1fr 46px 52px;gap:6px;padding:5px 6px;border-radius:6px;cursor:pointer}
 #peaks li:hover{background:var(--panel2)}
@@ -125,7 +124,7 @@ details.settings summary{cursor:pointer;color:var(--muted);padding:4px 0}
 <body>
 
 <header class="top">
-  <div class="brand"><b>練團回放台</b><span id="status" class="status">尚未開啟輸入</span></div>
+  <div class="brand"><b>隨便做的東西</b><span id="status" class="status">尚未開啟輸入</span></div>
   <div class="io">
     <label>輸入 <select id="inSel"><option value="">（先開啟輸入）</option></select></label>
     <label>聲道 <select id="chSel"><option value="0">1</option><option value="1">2</option><option value="mix">1+2</option></select></label>
@@ -166,8 +165,6 @@ details.settings summary{cursor:pointer;color:var(--muted);padding:4px 0}
   </section>
 
   <aside class="panel side">
-    <h3>泛音結構</h3>
-    <canvas id="harm" aria-label="各泛音音量"></canvas>
     <h3>峰值</h3>
     <ol id="peaks"><li class="empty">還沒有訊號</li></ol>
   </aside>
@@ -607,22 +604,6 @@ function drawSpec(db, sr, n, peaks, f0, msg){
     g.fillText(noteOf(p.f).name, Math.max(L+14,Math.min(L+pw-14,x)), y-5);
   }
 }
-function drawHarm(db, sr, n, f0){
-  const { g, w, h } = prep($('harm')); g.clearRect(0,0,w,h);
-  const N=12, T=14, B=16, ph=h-T-B, bw=w/N;
-  g.font='10px ui-monospace,Menlo,monospace'; g.textAlign='center';
-  if (!db || !f0){ g.fillStyle=C.muted; g.font='12px -apple-system,"PingFang TC",sans-serif'; g.textBaseline='middle'; g.fillText(S.f0Mode==='off'?'基音標示已關閉':'抓不到基音', w/2, h/2); return; }
-  const binHz=sr/n, base=levelNear(db,f0,binHz);
-  for (let k=1;k<=N;k++){
-    const f=k*f0, x=(k-1)*bw;
-    g.textBaseline='top'; g.fillStyle=C.muted; g.fillText(k, x+bw/2, h-B+4);
-    if (f>=sr/2) continue;
-    const l=levelNear(db,f,binHz), u=Math.max(0,Math.min(1,(l-set.dbMin)/(set.dbMax-set.dbMin))), bh=u*ph;
-    g.fillStyle = k===1 ? C.accent2 : 'rgba(95,212,232,.55)';
-    g.fillRect(x+3, T+ph-bh, bw-6, bh);
-    if (k>1 && bw>20){ g.textBaseline='bottom'; g.fillStyle=C.muted; const r=Math.round(l-base); g.fillText((r>0?'+':'')+r, x+bw/2, T+ph-bh-1); }
-  }
-}
 let peaksAt=0;
 function renderPeaks(peaks){
   const now=performance.now(); if (now-peaksAt<160 && !S.dirty) return; peaksAt=now;
@@ -768,7 +749,6 @@ function frame(){
   }
   S.f0=f0;
   drawSpec(disp, sr, n, peaks, f0, msg);
-  drawHarm(disp, sr, n, f0);
   renderPeaks(peaks);
   if (f0){ const nt=noteOf(f0); $('f0Txt').textContent='基音 '+nt.name+' '+fmtHz(f0)+' Hz '+(nt.cents>0?'+':'')+nt.cents+'¢'; }
   else $('f0Txt').textContent = S.f0Mode==='lock' ? '在頻譜上點一個峰值' : '';
