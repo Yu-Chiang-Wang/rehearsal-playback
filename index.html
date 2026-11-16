@@ -351,9 +351,10 @@ async function openInput(deviceId){
     await listDevices();
     const tr = st.getAudioTracks()[0];
     setStatus('輸入中：'+(tr.label||'麥克風')+' · '+S.ctx.sampleRate+' Hz','live');
-    tr.onended = () => { S.stream=null; setStatus('輸入已中斷，請重新開啟','warn'); updateUI(); };
+    tr.onended = () => { S.stream=null; $('openBtn').hidden=false; setStatus('輸入已中斷，請按「開啟輸入」','warn'); updateUI(); };
+    tr.onmute = () => setStatus('輸入被系統暫停（可能是裝置切換），請按「開啟輸入」或重新整理','warn');
+    $('openBtn').textContent='重新開啟輸入';
     if (!S.take || S.recording) S.view='input';
-    $('openBtn').hidden = true;
     S.dirty=true; updateUI();
     return true;
   } catch(e){
@@ -747,7 +748,7 @@ function renderTakes(){
   }
 }
 
-$('openBtn').onclick = () => openInput();
+$('openBtn').onclick = () => openInput(S.stream ? '' : undefined);
 $('recBtn').onclick = recPressed;
 $('countdown').onclick = cancelCountdown;
 $('playBtn').onclick = () => { if (S.playing) pause(); else play(); };
@@ -794,7 +795,23 @@ addEventListener('resize', () => { S.dirty=true; });
     el.addEventListener(ev, () => { saved[id]=el.value; try{ localStorage.setItem('rp-settings', JSON.stringify(saved)); }catch(_){} });
   }
 })();
-if (navigator.mediaDevices) navigator.mediaDevices.addEventListener && navigator.mediaDevices.addEventListener('devicechange', listDevices);
+/* 介面插拔後：重新列出裝置；目前輸入斷了或有新裝置出現，就改用系統預設輸入（iPad 會切到 USB 介面） */
+let knownIns = null;
+async function onDeviceChange(){
+  let devs=[]; try{ devs = await navigator.mediaDevices.enumerateDevices(); }catch(_){}
+  const ids = devs.filter(d=>d.kind==='audioinput').map(d=>d.deviceId+'|'+d.label).sort().join(',');
+  const changed = knownIns!==null && ids!==knownIns; knownIns = ids;
+  await listDevices();
+  if (S.recording) return;
+  const tr = S.stream && S.stream.getAudioTracks()[0];
+  if (S.stream && (changed || !tr || tr.readyState==='ended')){ setStatus('偵測到輸入裝置變動，重新開啟中…'); openInput(''); }
+}
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener){
+  navigator.mediaDevices.addEventListener('devicechange', onDeviceChange);
+  navigator.mediaDevices.enumerateDevices().then(ds=>{ knownIns = ds.filter(d=>d.kind==='audioinput').map(d=>d.deviceId+'|'+d.label).sort().join(','); }).catch(()=>{});
+}
+/* iOS 切換音訊路徑時 AudioContext 會被中斷，下一次觸控就恢復 */
+addEventListener('pointerdown', () => { if (S.ctx && S.ctx.state!=='running') S.ctx.resume(); }, true);
 if (!window.isSecureContext) setStatus('這一頁不是 https，瀏覽器不會開放麥克風','warn');
 
 (function themes(){
